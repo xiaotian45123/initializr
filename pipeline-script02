@@ -1,0 +1,36 @@
+podTemplate(inheritFrom: 'openjdk21maven3',containers: [
+      containerTemplate(name: 'openjdk21maven3', image: 'fangcangorg/openjdk21:alpine', command: 'cat', ttyEnabled: true),
+      containerTemplate(name: 'kaniko', image: 'gcr.io/kaniko-project/executor:debug', command: 'cat', ttyEnabled: true),
+  ],
+    volumes: [
+        secretVolume(secretName: 'kaniko-dockerhub', mountPath: '/kaniko/.docker/'),
+  	    nfsVolume(serverAddress: '192.168.70.15',serverPath:'/nfs/m2',mountPath: '/root/.m2'),
+      ]
+  ) {
+
+    node('openjdk21maven3') { 
+        stage('拉取代码') { 
+            git url: 'https://github.com/xiaotian45123/initializr.git',branch: 'main'
+        }
+
+        stage('编译应用') { 
+            container('openjdk21maven3') {
+                  sh "pwd && ls -l && ./mvnw clean package -DskipTests"
+              }
+        }
+
+        stage('编译docker镜像并推送'){
+            container('kaniko'){
+                sh "sleep  50 && executor --context=`pwd` --dockerfile=`pwd`/Dockerfile --destination=fangcangorg/openjdk21:01"
+            }
+        }
+
+        stage('部署程序'){
+         container('kaniko'){
+             sh "echo Done"
+           }
+        }
+
+    }
+
+}
